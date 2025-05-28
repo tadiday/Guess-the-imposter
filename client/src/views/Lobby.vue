@@ -1,9 +1,23 @@
 <template>
   <div class="lobby">
     <h1>Guess the Imposter</h1>
-    <input v-model="playerName" placeholder="Enter your name" />
-    <input v-model="roomCode" placeholder="Enter room code" />
-    <button @click="joinRoom">Join Game</button>
+
+    <div class="boxes">
+      <!-- Create Game -->
+      <div class="box">
+        <h2>Create Game</h2>
+        <input v-model="playerName" placeholder="Enter your name" />
+        <button @click="createRoom" :disabled="!playerName">Create Room</button>
+      </div>
+
+      <!-- Join Game -->
+      <div class="box">
+        <h2>Join Game</h2>
+        <input v-model="playerName" placeholder="Enter your name" />
+        <input v-model="roomCode" placeholder="Enter room code" />
+        <button @click="joinRoom" :disabled="!playerName || !roomCode">Join Room</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -25,6 +39,17 @@ const joinRoom = () => {
   }
 }
 
+const createRoom = () => {
+  if (playerName.value) {
+    // Generate a random room code (for simplicity, using a random number)
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase()
+    // Navigate to the new room with the generated code
+    router.push({ name: 'Room', params: { code } })
+  } else {
+    alert('Please enter your name.')
+  }
+}
+
 </script>
 
 <style scoped>
@@ -32,13 +57,23 @@ const joinRoom = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 4rem;
+  padding: 2rem;
 }
-input {
-  margin: 0.5rem 0;
-  padding: 0.5rem;
+
+.boxes {
+  display: flex;
+  gap: 2rem;
+  margin-top: 2rem;
 }
-button {
-  padding: 0.5rem 1rem;
+
+.box {
+  padding: 1.5rem;
+  border: 1px solid #ccc;
+  border-radius: 1rem;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background-color: #f9f9f9;
 }
 </style>
