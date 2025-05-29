@@ -7,37 +7,44 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-.DS_Store
-dist
-dist-ssr
-coverage
-*.local
+# Node modules
+node_modules/
+client/node_modules/
+client/backend/node_modules/
 
-/cypress/videos/
-/cypress/screenshots/
+# Build output
+dist/
+client/dist/
+client/backend/dist/
+build/
+*.tsbuildinfo
 
-# Editor directories and files
+# Test output
+coverage/
+client/cypress/videos/
+client/cypress/screenshots/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Editor config
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-*.tsbuildinfo
+# Cache
+.vite/
+.cache/
+.eslintcache/
 
-
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# Vite cache (for performance, not needed in Git)
-.vite
-
-# OS files
+# OS
+.DS_Store
 Thumbs.db
 ehthumbs.db
