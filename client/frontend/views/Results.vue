@@ -1,84 +1,26 @@
 <template>
     <div class="room">
-        <h1>Room Code: {{ roomCode }}</h1>
+        <p>Time left: {{ countdown }}s</p>
 
-        <h2>Players:</h2>
+        <h3>All Answers</h3>
         <ul>
-            <li v-for="player in players" :key="player">{{ player }}</li>
+            <li v-for="entry in answers" :key="entry.name">
+                {{ entry.name }}: {{ entry.answer }}
+            </li>
         </ul>
 
-        <!-- Host-only Settings Panel -->
-        <div v-if="isHost && phase === 'waiting'" class="settings">
-            <h3>Room Settings</h3>
-
-            <label>
-                Private Room:
-                <input type="checkbox" v-model="roomSettings.isPrivate" />
-            </label>
-
-            <label>
-                Max Players:
-                <input type="number" v-model="roomSettings.maxPlayers" min="2" max="10" />
-            </label>
-
-            <label>
-                Answer Time (sec):
-                <input type="number" v-model="roomSettings.answerTime" min="10" max="60" />
-            </label>
-
-            <label>
-                Voting Time (sec):
-                <input type="number" v-model="roomSettings.votingTime" min="10" max="60" />
-            </label>
-        </div>
-
-        <!-- Public Room Info -->
-        <div v-if="phase === 'waiting'" class="room-info">
-            <h3>Room Info</h3>
-            <ul>
-                <li>Visibility: {{ roomSettings.isPrivate ? 'Private' : 'Public' }}</li>
-                <li>Max Players: {{ roomSettings.maxPlayers }}</li>
-                <li>Answer Time: {{ roomSettings.answerTime }}s</li>
-                <li>Voting Time: {{ roomSettings.votingTime }}s</li>
-            </ul>
-            <p>Waiting for players...</p>
-            <button v-if="isHost" @click="startGame">Start Game</button>
-        </div>
-
-
-
-        <!-- Game Phases -->
-        <div v-else-if="phase === 'question'">
-            <p>Time left: {{ countdown }}s</p>
-            <p><strong>Question:</strong> {{ question }}</p>
-            <input v-model="answer" placeholder="Your answer..." />
-            <button @click="submitAnswer">Submit</button>
-        </div>
-
-        <div v-else-if="phase === 'voting'">
-          <Voting
-            :players="players"
-            :answers="answers"
-            :countdown="countdown"
-            @vote="vote"
-          />
-        </div>
-
-        <div v-else-if="phase === 'results'">
-            <h3>Votes</h3>
-            <ul>
-                <li v-for="(count, player) in votes" :key="player">
-                    {{ player }}: {{ count }} votes
-                </li>
-            </ul>
-        </div>
+        <h3>Vote: Who is the imposter?</h3>
+        <ul>
+            <li v-for="player in players" :key="player">
+                <button @click="vote(player)">{{ player }}</button>
+            </li>
+        </ul>
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
-import Voting from './Voting.vue'
 
 const route = useRoute()
 const roomCode = route.params.code as string
