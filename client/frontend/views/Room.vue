@@ -49,10 +49,11 @@
 
         <!-- Game Phases -->
         <div v-else-if="phase === 'question'">
-            <p>Time left: {{ countdown }}s</p>
-            <p><strong>Question:</strong> {{ question }}</p>
-            <input v-model="answer" placeholder="Your answer..." />
-            <button @click="submitAnswer">Submit</button>
+          <Question
+            :question="question"
+            :countdown="countdown"
+            @submit-answer="submitAnswer"
+          />
         </div>
 
         <div v-else-if="phase === 'voting'">
@@ -76,9 +77,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Voting from './Voting.vue'
+import Question from './Question.vue'
+import socket from '../stores/socket';
 
 const route = useRoute()
 const roomCode = route.params.code as string
@@ -94,6 +97,16 @@ const answer = ref('')
 const answers = ref<{ name: string; answer: string }[]>([])
 const votes = ref<Record<string, number>>({})
 
+
+onMounted(() => {
+  socket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.type === 'players-update') {
+      players.value = data.players;
+    }
+  }
+});
 
 // Room settings — editable by host
 const roomSettings = ref({
