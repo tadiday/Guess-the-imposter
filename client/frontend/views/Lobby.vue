@@ -25,6 +25,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import socket from '../stores/socket';
 
 const playerName = ref('')
 const roomCode = ref('')
@@ -33,7 +34,16 @@ const router = useRouter()
 const joinRoom = () => {
   if (playerName.value && roomCode.value) {
     // Navigate to the room with the provided code
-    router.push({ name: 'Room', params: { code: roomCode.value } })
+    socket.send(
+      JSON.stringify({
+      type: "joinRoom", 
+      name: playerName.value,
+      roomCode: roomCode.value,
+    })
+  );
+
+  router.push({ name: 'Room', params: { code: roomCode.value } });
+
   } else {
     alert('Please enter both your name and a room code.')
   }

@@ -89,7 +89,8 @@ const playerName = 'You' // Should come from global state/store
 const isHost = true      // Simulated for now
 
 const phase = ref<'waiting' | 'question' | 'voting' | 'results'>('waiting')
-const players = ref<string[]>(['You', 'Alice', 'Bob'])
+const players = ref<string[]>([]);
+const host = ref<string | null>(null);
 const imposter = ref<string>('Bob') // Simulated imposter for demo
 
 const question = ref('')
@@ -100,12 +101,16 @@ const votes = ref<Record<string, number>>({})
 
 onMounted(() => {
   socket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-
-    if (data.type === 'players-update') {
-      players.value = data.players;
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'players-update' && data.roomCode === roomCode) {
+        players.value = data.players;
+        host.value = data.host;
+      }
+    } catch (err) {
+      console.error("Invalid JSON from server:", event.data);
     }
-  }
+  };
 });
 
 // Room settings — editable by host
