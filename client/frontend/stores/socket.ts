@@ -8,13 +8,13 @@ socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
     if (data.type === "players-update") {
-      console.log("🧑‍🤝‍🧑 Players:", data.players);
-      console.log("👑 Host:", data.host);
+      console.log("Players:", data.players);
+      console.log("Host:", data.host);
     } else if (data.type === "error") {
-      console.error("❌ Server error:", data.message);
+      console.error("Server error:", data.message);
     }
   } catch (err) {
-    console.error("⚠️ Invalid JSON from server:", event.data);
+    console.error("Invalid JSON from server:", event.data);
   }
 };
 

@@ -33,17 +33,27 @@ const router = useRouter()
 
 const joinRoom = () => {
   if (playerName.value && roomCode.value) {
-    // Navigate to the room with the provided code
-    socket.send(
-      JSON.stringify({
-      type: "joinRoom", 
+    // Handler to process the next server response
+    const handleJoinResponse = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'players-update' && data.roomCode === roomCode.value) {
+          socket.removeEventListener('message', handleJoinResponse);
+          router.push({ name: 'Room', params: { code: roomCode.value } });
+        } else if (data.type === 'error') {
+          socket.removeEventListener('message', handleJoinResponse);
+          alert(data.message || 'Failed to join room.');
+        }
+      } catch (err) {
+        // Ignore invalid JSON here
+      }
+    };
+    socket.addEventListener('message', handleJoinResponse);
+    socket.send(JSON.stringify({
+      type: 'joinRoom',
       name: playerName.value,
-      roomCode: roomCode.value,
-    })
-  );
-
-  router.push({ name: 'Room', params: { code: roomCode.value } });
-
+      roomCode: roomCode.value
+    }));
   } else {
     alert('Please enter both your name and a room code.')
   }
@@ -51,15 +61,17 @@ const joinRoom = () => {
 
 const createRoom = () => {
   if (playerName.value) {
-    // Generate a random room code (for simplicity, using a random number)
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase()
-    // Navigate to the new room with the generated code
-    router.push({ name: 'Room', params: { code } })
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    socket.send(JSON.stringify({
+      type: 'createRoom',
+      name: playerName.value,
+      roomCode: code
+    }));
+    router.push({ name: 'Room', params: { code } });
   } else {
     alert('Please enter your name.')
   }
 }
-
 </script>
 
 <style scoped>
