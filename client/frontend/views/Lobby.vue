@@ -6,16 +6,16 @@
       <!-- Create Game -->
       <div class="box">
         <h2>Create Game</h2>
-        <input v-model="playerName" placeholder="Enter your name" />
-        <button @click="createRoom" :disabled="!playerName">Create Room</button>
+        <input v-model="createName" placeholder="Enter your name" />
+        <button @click="createRoom" :disabled="!createName">Create Room</button>
       </div>
 
       <!-- Join Game -->
       <div class="box">
         <h2>Join Game</h2>
-        <input v-model="playerName" placeholder="Enter your name" />
+        <input v-model="joinName" placeholder="Enter your name" />
         <input v-model="roomCode" placeholder="Enter room code" />
-        <button @click="joinRoom" :disabled="!playerName || !roomCode">Join Room</button>
+        <button @click="joinRoom" :disabled="!joinName || !roomCode">Join Room</button>
       </div>
     </div>
   </div>
@@ -27,18 +27,23 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import socket from '../stores/socket';
 
-const playerName = ref('')
+// Separate variables for each input
+const createName = ref('')
+const joinName = ref('')
 const roomCode = ref('')
 const router = useRouter()
 
+// Simulate a global player name store (replace with Pinia or Vuex in real app)
+let globalPlayerName = ref('')
+
 const joinRoom = () => {
-  if (playerName.value && roomCode.value) {
-    // Handler to process the next server response
+  if (joinName.value && roomCode.value) {
     const handleJoinResponse = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'players-update' && data.roomCode === roomCode.value) {
           socket.removeEventListener('message', handleJoinResponse);
+          globalPlayerName.value = joinName.value; // Set global name
           router.push({ name: 'Room', params: { code: roomCode.value } });
         } else if (data.type === 'error') {
           socket.removeEventListener('message', handleJoinResponse);
@@ -51,7 +56,7 @@ const joinRoom = () => {
     socket.addEventListener('message', handleJoinResponse);
     socket.send(JSON.stringify({
       type: 'joinRoom',
-      name: playerName.value,
+      name: joinName.value,
       roomCode: roomCode.value
     }));
   } else {
@@ -60,11 +65,12 @@ const joinRoom = () => {
 }
 
 const createRoom = () => {
-  if (playerName.value) {
+  if (createName.value) {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    globalPlayerName.value = createName.value; // Set global name
     socket.send(JSON.stringify({
       type: 'createRoom',
-      name: playerName.value,
+      name: createName.value,
       roomCode: code
     }));
     router.push({ name: 'Room', params: { code } });

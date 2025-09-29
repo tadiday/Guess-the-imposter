@@ -35,6 +35,9 @@ wss.on('connection', (socket) => {
                     rooms[roomCode].players.push(name);
                 }
 
+                // Print all players in the room
+                console.log(`Current players in room ${roomCode}:`, rooms[roomCode].players);
+
                 // Set the host if not already set
                 if (!rooms[roomCode].host) {
                     rooms[roomCode].host = name;
@@ -92,4 +95,4 @@ wss.on('connection', (socket) => {
         console.log('Client disconnected');
     });
 });
-console.log('WebSocket server is running on ws://localhost:8080');  
+console.log('WebSocket server is running on ws://localhost:8080');
