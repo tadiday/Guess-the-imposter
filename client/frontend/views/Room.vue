@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Voting from './Voting.vue'
 import Question from './Question.vue'
@@ -98,29 +98,13 @@ const answer = ref('')
 const answers = ref<{ name: string; answer: string }[]>([])
 const votes = ref<Record<string, number>>({})
 
-
-onMounted(() => {
-  socket.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      if (data.type === 'players-update' && data.roomCode === roomCode) {
-        players.value = data.players;
-        host.value = data.host;
-      }
-    } catch (err) {
-      console.error("Invalid JSON from server:", event.data);
-    }
-  };
-});
-
 // Room settings — editable by host
 const roomSettings = ref({
   isPrivate: false,
   maxPlayers: 6,
   answerTime: 5,
-  votingTime: 2,
+  votingTime: 30,
 })
-
 
 const countdown = ref(0)
 let countdownInterval: number | undefined
@@ -140,16 +124,11 @@ const startCountdown = (seconds: number, onComplete: () => void) => {
 
 // Start game logic
 const startGame = () => {
-  phase.value = 'question'
-  question.value =
-    playerName === imposter.value
-      ? 'Pick a number between 1–100'
-      : 'What is the best age to date?'
-
-  // Auto-submit answer after timeout
-    startCountdown(roomSettings.value.answerTime, submitAnswer)
+  socket.send(JSON.stringify({
+    type: 'startGame',
+    roomCode
+  }))
 }
-
 
 // Submit answer and move to reveal phase
 const submitAnswer = () => {
@@ -165,9 +144,9 @@ const submitAnswer = () => {
     }
   }, roomSettings.value.votingTime * 1000)
 
-    startCountdown(roomSettings.value.votingTime, () => {
+  startCountdown(roomSettings.value.votingTime, () => {
     phase.value = 'results'
-})
+  })
 }
 
 // Vote for a player
@@ -176,6 +155,41 @@ const vote = (player: string) => {
   votes.value[player]++
   phase.value = 'results'
 }
+
+// Players update handling
+const handlePlayersUpdate = (event: MessageEvent) => {
+  try {
+    const data = JSON.parse(event.data)
+    if (data.type === 'players-update' && data.roomCode === roomCode) {
+      players.value = data.players || []
+      host.value = data.host || null
+    }
+  } catch {}
+}
+
+const handleGameStart = (event: MessageEvent) => {
+  try {
+    const data = JSON.parse(event.data)
+    if (data.type === 'game-start' && data.roomCode === roomCode) {
+      phase.value = 'question'
+      question.value =
+        playerName === imposter.value
+          ? 'Pick a number between 1–100'
+          : 'What is the best age to date?'
+      startCountdown(roomSettings.value.answerTime, submitAnswer)
+    }
+  } catch {}
+}
+
+onMounted(() => {
+  socket.addEventListener('message', handlePlayersUpdate)
+  socket.addEventListener('message', handleGameStart)
+})
+
+onUnmounted(() => {
+  socket.removeEventListener('message', handlePlayersUpdate)
+  socket.removeEventListener('message', handleGameStart)
+})
 </script>
 
 <style scoped>
