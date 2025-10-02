@@ -49,11 +49,15 @@ const players = ref<string[]>([])
 const handlePlayersUpdate = (event: MessageEvent) => {
   try {
     const data = JSON.parse(event.data)
-    if (data.type === 'players-update' && data.roomCode === roomCode.value) {
-      players.value = data.players || []
+    if (data.type === 'players-update') {
+      // Update players list if we're looking at this room
+      if (data.roomCode === roomCode.value || data.roomCode === createName.value) {
+        console.log('Updating player list:', data.players)
+        players.value = data.players || []
+      }
     }
   } catch (err) {
-    // Ignore invalid JSON
+    console.error('Error handling player update:', err)
   }
 }
 

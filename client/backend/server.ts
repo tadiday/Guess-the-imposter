@@ -17,7 +17,10 @@ const wss = new WebSocketServer({ port: 8080 });
 
 function broadcastToRoom(roomCode: string) {
   const room = rooms[roomCode];
-  if (!room) return;
+  if (!room) {
+    console.log(`Attempted to broadcast to non-existent room: ${roomCode}`);
+    return;
+  }
 
   const roomData = {
     players: room.players.map(p => ({
@@ -26,6 +29,8 @@ function broadcastToRoom(roomCode: string) {
     })),
     host: room.players[room.hostId]?.name
   };
+
+  console.log(`Broadcasting room update for ${roomCode}:`, roomData);
 
   wss.clients.forEach(client => {
     if (
@@ -42,6 +47,12 @@ function broadcastToRoom(roomCode: string) {
 }
 
 function broadcastGameStart(roomCode: string) {
+  const room = rooms[roomCode];
+  if (!room) return;
+
+  // Randomly select an imposter from the players
+  const imposterIndex = Math.floor(Math.random() * room.players.length);
+  
   wss.clients.forEach(client => {
     if (
       client.readyState === client.OPEN &&
@@ -49,10 +60,14 @@ function broadcastGameStart(roomCode: string) {
     ) {
       client.send(JSON.stringify({
         type: 'game-start',
-        roomCode
+        roomCode,
+        phase: 'question',
+        isImposter: room.players[imposterIndex].name // This will be used client-side to determine roles
       }));
     }
   });
+  
+  console.log(`Game started in room ${roomCode}`);
 }
 
 wss.on('connection', (socket) => {
@@ -87,12 +102,26 @@ wss.on('connection', (socket) => {
 
         clientRooms.set(socket, roomCode); // Track this client's room
 
-        // Print all players in the room
-        console.log(`Current players in room ${roomCode}:`, 
-          rooms[roomCode].players.map(p => `${p.name} (${p.role})`));
+        // First, send immediate update to the joining player
+        const roomData = {
+          players: rooms[roomCode].players.map(p => ({
+            name: p.name,
+            role: p.role
+          })),
+          host: rooms[roomCode].players[rooms[roomCode].hostId]?.name
+        };
 
-        // --- Broadcast updated room state to all players ---
+        socket.send(JSON.stringify({
+          type: 'players-update',
+          roomCode,
+          ...roomData
+        }));
+
+        // Then broadcast to everyone
         broadcastToRoom(roomCode);
+
+        console.log(`Player ${name} joined room ${roomCode}. Current players:`, 
+          rooms[roomCode].players.map(p => `${p.name} (${p.role})`));
 
         console.log(`Player ${name} joined room ${roomCode}`);
 

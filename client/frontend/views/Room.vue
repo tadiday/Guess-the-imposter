@@ -3,8 +3,20 @@
         <h1>Room Code: {{ roomCode }}</h1>
 
         <h2>Players:</h2>
-        <ul>
-            <li v-for="player in players" :key="player">{{ player }}</li>
+        <ul class="player-list">
+            <li 
+              v-for="player in players" 
+              :key="player.name" 
+              :class="{
+                'host': player.role === 'host',
+                'current-player': player.name === playerName
+              }"
+            >
+              <span :class="{ 'player-name': true, 'bold': player.name === playerName }">
+                {{ player.name }}
+              </span>
+              <span v-if="player.role === 'host'" class="host-text"> (Host)</span>
+            </li>
         </ul>
 
         <!-- Host-only Settings Panel -->
@@ -33,7 +45,7 @@
         </div>
 
         <!-- Public Room Info -->
-        <div v-if="phase === 'waiting'" class="room-info">
+        <div v-if="!isHost && phase === 'waiting'" class="room-info">
             <h3>Room Info</h3>
             <ul>
                 <li>Visibility: {{ roomSettings.isPrivate ? 'Private' : 'Public' }}</li>
@@ -41,14 +53,16 @@
                 <li>Answer Time: {{ roomSettings.answerTime }}s</li>
                 <li>Voting Time: {{ roomSettings.votingTime }}s</li>
             </ul>
+        </div>
+
+        <!-- Waiting Phase -->
+        <div v-if="phase === 'waiting'">
             <p>Waiting for players...</p>
             <button v-if="isHost" @click="startGame">Start Game</button>
         </div>
 
-
-
         <!-- Game Phases -->
-        <div v-else-if="phase === 'question'">
+        <div v-if="phase === 'question'">
           <Question
             :question="question"
             :countdown="countdown"
@@ -56,11 +70,12 @@
           />
         </div>
 
-        <div v-else-if="phase === 'voting'">
+        <div v-if="phase === 'voting'">
           <Voting
             :players="players"
             :answers="answers"
             :countdown="countdown"
+            :current-player-name="playerName"
             @vote="vote"
           />
         </div>
@@ -91,7 +106,12 @@ const playerName = playerStore.name
 const isHost = playerStore.isHost
 
 const phase = ref<'waiting' | 'question' | 'voting' | 'results'>('waiting')
-const players = ref<string[]>([]);
+interface Player {
+  name: string;
+  role: 'host' | 'player';
+}
+
+const players = ref<Player[]>([]);
 const host = ref<string | null>(null);
 const imposter = ref<string>('Bob') // Simulated imposter for demo
 
@@ -126,10 +146,20 @@ const startCountdown = (seconds: number, onComplete: () => void) => {
 
 // Start game logic
 const startGame = () => {
-  socket.send(JSON.stringify({
-    type: 'startGame',
-    roomCode
-  }))
+  if (!isHost) {
+    console.error('Only host can start the game');
+    return;
+  }
+
+  try {
+    socket.send(JSON.stringify({
+      type: 'startGame',
+      roomCode
+    }));
+    console.log('Sent start game request');
+  } catch (err) {
+    console.error('Error starting game:', err);
+  }
 }
 
 // Submit answer and move to reveal phase
@@ -174,14 +204,23 @@ const handleGameStart = (event: MessageEvent) => {
   try {
     const data = JSON.parse(event.data)
     if (data.type === 'game-start' && data.roomCode === roomCode) {
-      phase.value = 'question'
-      question.value =
-        playerName === imposter.value
-          ? 'Pick a number between 1–100'
-          : 'What is the best age to date?'
+      console.log('Game starting:', data);
+      phase.value = data.phase;
+      // Set player role based on server assignment
+      const isImposter = data.isImposter === playerName;
+      imposter.value = data.isImposter;
+      
+      // Set appropriate question based on role
+      question.value = isImposter
+        ? 'Pick a number between 1–100'
+        : 'What is the best age to date?'
+      
+      // Start the countdown for all players
       startCountdown(roomSettings.value.answerTime, submitAnswer)
     }
-  } catch {}
+  } catch (err) {
+    console.error('Error handling game start:', err);
+  }
 }
 
 onMounted(() => {
@@ -218,5 +257,38 @@ onUnmounted(() => {
 
 .room-info {
   margin-top: 1rem;
+}
+
+.player-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.player-list li {
+  padding: 0.5rem 1rem;
+  margin: 0.5rem 0;
+  background: #f5f5f5;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+}
+
+.player-list li:hover {
+  transform: translateX(5px);
+}
+
+.player-list li.current-player {
+  background: #fff3e0;
+  border: 2px solid #ffb74d;
+}
+
+.host-text {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.player-name.bold {
+  font-weight: 700;
 }
 </style>
