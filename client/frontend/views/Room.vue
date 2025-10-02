@@ -226,12 +226,25 @@ const handleGameStart = (event: MessageEvent) => {
 onMounted(() => {
   socket.addEventListener('message', handlePlayersUpdate)
   socket.addEventListener('message', handleGameStart)
+
+  // 👇 Auto-rejoin when socket reconnects
+  socket.addEventListener('open', () => {
+    if (playerName && roomCode) {
+      socket.send(JSON.stringify({
+        type: 'joinRoom',
+        name: playerName,
+        roomCode
+      }))
+      console.log(`Rejoined room ${roomCode} as ${playerName}`)
+    }
+  })
 })
 
 onUnmounted(() => {
   socket.removeEventListener('message', handlePlayersUpdate)
   socket.removeEventListener('message', handleGameStart)
 })
+
 </script>
 
 <style scoped>
