@@ -1,8 +1,14 @@
 import { WebSocketServer, WebSocket } from 'ws';
 
+interface Player {
+  name: string;
+  role: 'host' | 'player';
+  joinedAt: number;
+}
+
 interface Room {
-  players: string[];
-  host: string | null;
+  players: Player[];
+  hostId: number; // Index of the host in the players array
 }
 
 const rooms: Record<string, Room> = {};
@@ -10,6 +16,17 @@ const clientRooms = new Map<WebSocket, string>(); // Track which room each clien
 const wss = new WebSocketServer({ port: 8080 });
 
 function broadcastToRoom(roomCode: string) {
+  const room = rooms[roomCode];
+  if (!room) return;
+
+  const roomData = {
+    players: room.players.map(p => ({
+      name: p.name,
+      role: p.role
+    })),
+    host: room.players[room.hostId]?.name
+  };
+
   wss.clients.forEach(client => {
     if (
       client.readyState === client.OPEN &&
@@ -18,8 +35,7 @@ function broadcastToRoom(roomCode: string) {
       client.send(JSON.stringify({
         type: 'players-update',
         roomCode,
-        players: rooms[roomCode].players,
-        host: rooms[roomCode].host
+        ...roomData
       }));
     }
   });
@@ -60,29 +76,22 @@ wss.on('connection', (socket) => {
         }
         
         // Add player if not already in the room
-        if (!rooms[roomCode].players.includes(name)) {
-          rooms[roomCode].players.push(name);
+        const existingPlayerIndex = rooms[roomCode].players.findIndex(p => p.name === name);
+        if (existingPlayerIndex === -1) {
+          rooms[roomCode].players.push({
+            name,
+            role: 'player',
+            joinedAt: Date.now()
+          });
         }
 
         clientRooms.set(socket, roomCode); // Track this client's room
 
         // Print all players in the room
-        console.log(`Current players in room ${roomCode}:`, rooms[roomCode].players);
+        console.log(`Current players in room ${roomCode}:`, 
+          rooms[roomCode].players.map(p => `${p.name} (${p.role})`));
 
-        // Set the host if not already set
-        if (!rooms[roomCode].host) {
-          rooms[roomCode].host = name;
-        }
-
-        // --- Send the current player list to the joining player ---
-        socket.send(JSON.stringify({
-          type: 'players-update',
-          roomCode,
-          players: rooms[roomCode].players,
-          host: rooms[roomCode].host
-        }));
-
-        // --- Then broadcast to everyone else in the room ---
+        // --- Broadcast updated room state to all players ---
         broadcastToRoom(roomCode);
 
         console.log(`Player ${name} joined room ${roomCode}`);
@@ -96,7 +105,16 @@ wss.on('connection', (socket) => {
           return;
         }
 
-        rooms[roomCode] = { players: [name], host: name };
+        // Create room with creator as first player and host
+        rooms[roomCode] = {
+          players: [{
+            name,
+            role: 'host',
+            joinedAt: Date.now()
+          }],
+          hostId: 0 // First player is the host
+        };
+        
         clientRooms.set(socket, roomCode); // Track this client's room
 
         broadcastToRoom(roomCode);
@@ -119,10 +137,21 @@ wss.on('connection', (socket) => {
     // Remove player from room on disconnect
     const roomCode = clientRooms.get(socket);
     if (roomCode && rooms[roomCode]) {
-      // Remove player from players array
-      rooms[roomCode].players = rooms[roomCode].players.filter(
-        player => player !== rooms[roomCode].host // Optionally, track player names per socket
-      );
+      const room = rooms[roomCode];
+      
+      // If the host disconnects, make the longest-connected player the new host
+      if (room.players[room.hostId]) {
+        const remainingPlayers = room.players
+          .filter(p => p.name !== room.players[room.hostId].name)
+          .sort((a, b) => a.joinedAt - b.joinedAt);
+
+        if (remainingPlayers.length > 0) {
+          // Find index of the new host in the original array
+          room.hostId = room.players.findIndex(p => p.name === remainingPlayers[0].name);
+          room.players[room.hostId].role = 'host';
+        }
+      }
+
       broadcastToRoom(roomCode);
     }
     clientRooms.delete(socket);

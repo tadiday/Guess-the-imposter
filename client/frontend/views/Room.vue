@@ -79,14 +79,16 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { usePlayerStore } from '../stores/player'
 import Voting from './Voting.vue'
 import Question from './Question.vue'
 import socket from '../stores/socket';
 
 const route = useRoute()
 const roomCode = route.params.code as string
-const playerName = 'You' // Should come from global state/store
-const isHost = true      // Simulated for now
+const playerStore = usePlayerStore()
+const playerName = playerStore.name
+const isHost = playerStore.isHost
 
 const phase = ref<'waiting' | 'question' | 'voting' | 'results'>('waiting')
 const players = ref<string[]>([]);
@@ -163,6 +165,7 @@ const handlePlayersUpdate = (event: MessageEvent) => {
     if (data.type === 'players-update' && data.roomCode === roomCode) {
       players.value = data.players || []
       host.value = data.host || null
+      playerStore.setIsHost(data.host === playerStore.name)
     }
   } catch {}
 }

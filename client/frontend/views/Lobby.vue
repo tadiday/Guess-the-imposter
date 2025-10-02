@@ -33,14 +33,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { usePlayerStore } from '../stores/player'
 import socket from '../stores/socket';
 
 const createName = ref('')
 const joinName = ref('')
 const roomCode = ref('')
 const router = useRouter()
-
-let globalPlayerName = ref('')
+const playerStore = usePlayerStore()
 
 // Add this for player list
 const players = ref<string[]>([])
@@ -72,7 +72,8 @@ const joinRoom = () => {
         const data = JSON.parse(event.data);
         if (data.type === 'players-update' && data.roomCode === roomCode.value) {
           socket.removeEventListener('message', handleJoinResponse);
-          globalPlayerName.value = joinName.value;
+          playerStore.setPlayerName(joinName.value);
+          playerStore.setIsHost(data.host === joinName.value);
           router.push({ name: 'Room', params: { code: roomCode.value } });
         } else if (data.type === 'error') {
           socket.removeEventListener('message', handleJoinResponse);
@@ -94,7 +95,8 @@ const joinRoom = () => {
 const createRoom = () => {
   if (createName.value) {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    globalPlayerName.value = createName.value;
+    playerStore.setPlayerName(createName.value);
+    playerStore.setIsHost(true); // Creating a room makes you the host
     socket.send(JSON.stringify({
       type: 'createRoom',
       name: createName.value,
